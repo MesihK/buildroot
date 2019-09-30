@@ -24,8 +24,13 @@ QT5BASE_CONFIGURE_OPTS += \
 	-no-iconv \
 	-system-zlib \
 	-system-pcre \
-	-no-pch \
-	-shared
+	-no-pch
+
+ifeq ($(BR2_PACKAGE_QT5BASE_STATIC),y)
+QT5BASE_CONFIGURE_OPTS += -static
+else
+QT5BASE_CONFIGURE_OPTS += -shared
+endif
 
 # starting from version 5.9.0, -optimize-debug is enabled by default
 # for debug builds and it overrides -O* with -Og which is not what we
@@ -410,7 +415,7 @@ define QT5BASE_INSTALL_TARGET_EXAMPLES
 	fi
 endef
 
-ifeq ($(BR2_STATIC_LIBS),y)
+ifeq ($(BR2_PACKAGE_QT5BASE_STATIC),y)
 define QT5BASE_INSTALL_TARGET_CMDS
 	$(QT5BASE_INSTALL_TARGET_FONTS)
 	$(QT5BASE_INSTALL_TARGET_EXAMPLES)

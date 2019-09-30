@@ -18,6 +18,11 @@ config BR2_PACKAGE_QT5BASE
 
 if BR2_PACKAGE_QT5BASE
 
+config BR2_PACKAGE_QT5BASE_STATIC
+	bool "Static QT5Base Compilation"
+	help
+	  If you want to compile QT5 staticaly say yes here
+
 config BR2_PACKAGE_QT5BASE_CUSTOM_CONF_OPTS
 	string "Custom configuration options"
 	help

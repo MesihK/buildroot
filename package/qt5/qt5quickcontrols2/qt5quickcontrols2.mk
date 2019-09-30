@@ -32,6 +32,11 @@ endef
 endif
 
 ifeq ($(BR2_PACKAGE_QT5_VERSION_LATEST),y)
+ifeq ($(BR2_PACKAGE_QT5BASE_STATIC),y)
+define QT5QUICKCONTROLS2_INSTALL_TARGET_CMDS
+	$(QT5QUICKCONTROLS2_INSTALL_TARGET_EXAMPLES)
+endef
+else
 define QT5QUICKCONTROLS2_INSTALL_TARGET_CMDS
 	cp -dpf $(STAGING_DIR)/usr/lib/libQt5QuickTemplates2.so.* $(TARGET_DIR)/usr/lib
 	cp -dpf $(STAGING_DIR)/usr/lib/libQt5QuickControls2.so.* $(TARGET_DIR)/usr/lib
@@ -39,6 +44,15 @@ define QT5QUICKCONTROLS2_INSTALL_TARGET_CMDS
 	cp -dpfr $(STAGING_DIR)/usr/qml/Qt/labs/platform $(TARGET_DIR)/usr/qml/Qt/labs
 	cp -dpfr $(STAGING_DIR)/usr/qml/QtQuick/Controls.2 $(TARGET_DIR)/usr/qml/QtQuick
 	cp -dpfr $(STAGING_DIR)/usr/qml/QtQuick/Templates.2 $(TARGET_DIR)/usr/qml/QtQuick
+	$(QT5QUICKCONTROLS2_INSTALL_TARGET_EXAMPLES)
+endef
+endif
+else
+ifeq ($(BR2_PACKAGE_QT5BASE_STATIC),y)
+define QT5QUICKCONTROLS2_INSTALL_TARGET_CMDS
+	cp -dpfr $(STAGING_DIR)/usr/qml/Qt/labs/controls $(TARGET_DIR)/usr/qml/Qt/labs
+	cp -dpfr $(STAGING_DIR)/usr/qml/Qt/labs/calendar $(TARGET_DIR)/usr/qml/Qt/labs
+	cp -dpfr $(STAGING_DIR)/usr/qml/Qt/labs/templates $(TARGET_DIR)/usr/qml/Qt/labs
 	$(QT5QUICKCONTROLS2_INSTALL_TARGET_EXAMPLES)
 endef
 else
@@ -49,6 +63,7 @@ define QT5QUICKCONTROLS2_INSTALL_TARGET_CMDS
 	cp -dpfr $(STAGING_DIR)/usr/qml/Qt/labs/templates $(TARGET_DIR)/usr/qml/Qt/labs
 	$(QT5QUICKCONTROLS2_INSTALL_TARGET_EXAMPLES)
 endef
+endif
 endif
 
 $(eval $(generic-package))
