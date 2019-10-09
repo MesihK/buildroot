@@ -1,0 +1,85 @@
+From 843edca4d5d5db123f1148752944450ae4e60573 Mon Sep 17 00:00:00 2001
+From: Lars Knoll <lars.knoll@qt.io>
+Date: Mon, 20 Nov 2017 15:34:54 +0100
+Subject: [PATCH] WIP: Don't copy pixels twice until they end up on the screen
+
+The linux framebuffer code basically contains a composition
+manager that composes all windows to an offscreen surface in
+QFBScreen::doRedraw(). In a second step this image is then
+copied over to the real framebuffer.
+
+This is overkill in 90% of the use cases, where we only have one
+full screen window. This change shortcuts the composition step for
+testing.
+
+Will need a proper and working implementation that identifies
+this case and shortcuts it.
+
+Change-Id: I7860ae8486f38ccddd2c216f3694e1e8ad89471f
+---
+ src/plugins/platforms/linuxfb/qlinuxfbscreen.cpp | 37 ++++++++++++++++++++----
+ 1 file changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/src/plugins/platforms/linuxfb/qlinuxfbscreen.cpp b/src/plugins/platforms/linuxfb/qlinuxfbscreen.cpp
+index dc7ea08dc51..c4ae803e904 100644
+--- a/src/plugins/platforms/linuxfb/qlinuxfbscreen.cpp
++++ b/src/plugins/platforms/linuxfb/qlinuxfbscreen.cpp
+@@ -40,6 +40,7 @@
+ #include "qlinuxfbscreen.h"
+ #include <QtFbSupport/private/qfbcursor_p.h>
+ #include <QtFbSupport/private/qfbwindow_p.h>
++#include <QtFbSupport/private/qfbbackingstore_p.h>
+ #include <QtCore/QFile>
+ #include <QtCore/QRegularExpression>
+ #include <QtGui/QPainter>
+@@ -404,17 +405,41 @@ bool QLinuxFbScreen::initialize()
+ 
+ QRegion QLinuxFbScreen::doRedraw()
+ {
+-    QRegion touched = QFbScreen::doRedraw();
++    const QPoint screenOffset = mGeometry.topLeft();
+ 
+-    if (touched.isEmpty())
+-        return touched;
++    if (mRepaintRegion.isEmpty())
++        return mRepaintRegion;
+ 
+     if (!mBlitter)
+         mBlitter = new QPainter(&mFbScreenImage);
+ 
+-    mBlitter->setCompositionMode(QPainter::CompositionMode_Source);
+-    for (const QRect &rect : touched)
+-        mBlitter->drawImage(rect, mScreenImage, rect);
++    const QVector<QRect> rects = mRepaintRegion.rects();
++    const QRect screenRect = mGeometry.translated(-screenOffset);
++    for (int rectIndex = 0; rectIndex < mRepaintRegion.rectCount(); rectIndex++) {
++        const QRect rect = rects[rectIndex].intersected(screenRect);
++        if (rect.isEmpty())
++            continue;
++
++        mBlitter->setCompositionMode(QPainter::CompositionMode_Source);
++//        mBlitter->fillRect(rect, mScreenImage.hasAlphaChannel() ? Qt::transparent : Qt::black);
++
++        for (int layerIndex = mWindowStack.size() - 1; layerIndex != -1; layerIndex--) {
++            if (!mWindowStack[layerIndex]->window()->isVisible())
++                continue;
++
++            const QRect windowRect = mWindowStack[layerIndex]->geometry().translated(-screenOffset);
++            const QRect windowIntersect = rect.translated(-windowRect.left(), -windowRect.top());
++            QFbBackingStore *backingStore = mWindowStack[layerIndex]->backingStore();
++            if (backingStore) {
++                backingStore->lock();
++                mBlitter->drawImage(rect, backingStore->image(), windowIntersect);
++                backingStore->unlock();
++            }
++        }
++    }
++
++    QRegion touched = mRepaintRegion;
++    mRepaintRegion = QRegion();
+ 
+     return touched;
+ }
+-- 
+2.16.3
+
